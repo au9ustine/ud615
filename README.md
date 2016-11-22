@@ -34,7 +34,65 @@
 
 4. Create Kubernetes cluster
    ```
-   $ minikube start --vm-driver=kvm --kvm-network=default
+   $ minikube start --vm-driver=kvm
    Starting local Kubernetes cluster...
+   Downloading Minikube ISO
+    36.00 MB / 36.00 MB [==============================================] 100.00% 0s
    Kubectl is now configured to use the cluster.
+   ```
+   and you'll see a host network would be created
+   ```
+   $ virsh net-list
+    Name                 State      Autostart     Persistent
+   ----------------------------------------------------------
+    default              active     yes           yes
+    docker-machines      active     yes           yes
+   ```
+
+## Test
+
+1. Run a demo server to create a `deployment` and a `service`
+   ```
+   $ kubectl run hello-minikube --image=gcr.io/google_containers/echoserver:1.4 --port=8080
+   deployment "hello-minikube" created
+   $ kubectl expose deployment hello-minikube --type=NodePort
+   service "hello-minikube" exposed
+   ```
+
+2. Check if pod is creating/running
+   ```
+   $ kubectl get pod
+   NAME                              READY     STATUS    RESTARTS   AGE
+   hello-minikube-3015430129-8tkkb   1/1       Running   1          14m
+   ```
+
+3. Test availability
+   ```
+   $ curl $(minikube service hello-minikube --url)
+   CLIENT VALUES:
+   client_address=172.17.0.1
+   command=GET
+   real path=/
+   query=nil
+   request_version=1.1
+   request_uri=http://192.168.42.17:8080/
+
+   SERVER VALUES:
+   server_version=nginx: 1.10.0 - lua: 10001
+
+   HEADERS RECEIVED:
+   accept=*/*
+   host=192.168.42.17:30166
+   user-agent=curl/7.47.0
+   BODY:
+   -no body in request-
+   ```                
+
+4. Stop/Delete cluster to remove test data
+   ```
+   $ minikube stop
+   ```
+   or
+   ```
+   $ minikube delete
    ```
