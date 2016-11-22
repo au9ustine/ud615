@@ -1,4 +1,14 @@
-# ud615 Kubernetes
+# ud615 Notes
+
+## Environments
+
+* OS
+  * Linux 4.4.0-47-generic
+  * Ubuntu 16.04 LTS xenial
+* hardware
+  * Intel(R) Core(TM) i3-5010U @ 2.10GHz (`vmx` supported)
+  * 8G memory
+  * 4G ssd
 
 ## Installation
 
