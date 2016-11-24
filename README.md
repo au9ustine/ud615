@@ -215,3 +215,128 @@
    ```
 
 ## MHC (Monitoring and Health Checks)
+
+## Security
+
+1. Keys
+   * `cert.pem` and `key.pem`: secure traffic on a monolith server
+   * `ca-pem`: used by HTTP clients as a CA to trust
+
+2. Create `secret`
+   ```
+   $ kubectl create secret generic tls-certs --from-file=tls/
+   secret "tls-certs" created
+   ```
+
+3. Describe Keys
+   ```
+   $ kubectl describe secrets tls-certs
+   Name:		tls-certs
+   Namespace:	default
+   Labels:		<none>
+   Annotations:	<none>
+
+   Type:	Opaque
+
+   Data
+   ====
+   ca-key.pem:	1679 bytes
+   ca.pem:		1180 bytes
+   cert.pem:	1249 bytes
+   key.pem:	1675 bytes
+   ```
+
+4. Create `configmap`
+   ```
+   $ kubectl create configmap nginx-proxy-conf --from-file nginx/proxy.conf
+   configmap "nginx-proxy-conf" created
+   ```
+   and describe created `configmap`
+   ```
+   $ kubectl describe configmap nginx-proxy-conf
+   Name:		nginx-proxy-conf
+   Namespace:	default
+   Labels:		<none>
+   Annotations:	<none>
+
+   Data
+   ====
+   proxy.conf:	176 bytes
+   ```
+
+5. Create `secure-monolith` pod
+   ```
+   $ kubectl create -f pods/secure-monolith.yaml
+   pod "secure-monolith" created
+   ```
+   Note:
+   > If the pod keeps `ContainerCreating` for very long time, it means
+   > possibly the port conflict happens. You need to stop/delete those
+   > pods that occupying `80` and `81`, e.g. deleting running pod
+   > `healthy-monolith` and pod `monolith`
+
+6. Forward ports
+   ```
+   $ kubectl port-forward secure-monolith 10443:443
+   Forwarding from 127.0.0.1:10443 -> 443
+   Forwarding from [::1]:10443 -> 443
+   ```
+
+7. Check created pod logs
+   ```
+   $ kubectl logs -c nginx secure-monolith
+   ```
+
+## Services
+
+1. Create a service
+   ```
+   $ kubectl create -f services/monolith.yaml
+   You have exposed your service on an external port on all nodes in your
+   cluster.  If you want to expose this service to the external internet, you may
+   need to set up firewall rules for the service port(s) (tcp:31000) to serve traffic.
+
+   See http://releases.k8s.io/release-1.3/docs/user-guide/services-firewalls.md for more details.
+   service "monolith" created
+   ```
+
+2. Get labeled pod
+   ```
+   $ kubectl get pods -l "app=monolith"
+   NAME              READY     STATUS    RESTARTS   AGE
+   secure-monolith   2/2       Running   0          1h
+   $ kubectl describe pods secure-monolith | grep Labels
+   Labels:		app=monolith
+   ```
+
+3. Label a pod
+   ```
+   $ kubectl label pods secure-monolith "secure=enabled"
+   pod "secure-monolith" labeled
+   $ kubectl get pods -l "app=monolith,secure=enabled"
+   $
+   ```
+   
+4. Get endpoint
+   ```
+   $ kubectl describe services monolith | grep Endpoints
+   Endpoints:		172.17.0.7:443
+   ```
+
+5. Test availability
+   ```
+   $ minikube service monolith --url
+   http://192.168.42.17:31000
+   curl http://192.168.42.17:31000
+   <html>
+   <head><title>400 The plain HTTP request was sent to HTTPS port</title></head>
+   <body bgcolor="white">
+   <center><h1>400 Bad Request</h1></center>
+   <center>The plain HTTP request was sent to HTTPS port</center>
+   <hr><center>nginx/1.9.14</center>
+   </body>
+   </html>
+   $ curl -k https://192.168.42.17:31000
+   {"message":"Hello"}
+   ```
+   
